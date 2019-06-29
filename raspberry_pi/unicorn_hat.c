@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <time.h>
+#include <signal.h>
 
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
@@ -19,6 +20,7 @@
 
 static const char *devicePath = "/dev/spidev0.0";
 
+static bool exitRequested = false;
 static uint8_t display[DISPLAY_SIZE];
 static int deviceFd;
 
@@ -101,12 +103,25 @@ static void Error_Fatal(const char *s, ...)
     abort();
 }
 
+static void Signal_HandleInt(int signal)
+{
+    exitRequested = true;
+}
+
 int main(int argc, char *argv[])
 {
+    struct sigaction sa;
+    sa.sa_handler = &Signal_HandleInt;
+
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        Error_Fatal("Failed to install SIGINT handler: %s (%d)\n", strerror(errno), errno);
+    }
+
     deviceFd = open(devicePath, O_RDWR);
 
-    if (deviceFd < 0)
+    if (deviceFd < 0) {
         Error_Fatal("Failed to open SPI device: %s - %s (%d)\n", devicePath, strerror(errno), errno);
+    }
 
     uint8_t brightness = 0;
     uint8_t increase = -1;
@@ -115,7 +130,8 @@ int main(int argc, char *argv[])
         .tv_sec = 0,
         .tv_nsec = 5 * 1000 * 1000
     };
-    while(true) {
+
+    while(!exitRequested) {
         Display_SetAll(brightness, brightness, brightness);
         Display_Update();
 
@@ -127,7 +143,18 @@ int main(int argc, char *argv[])
         nanosleep(&sleepTime, NULL);
     }
 
-    close(deviceFd);
+    if (deviceFd) {
+        // Sleep to give any interrupted transactions time to complete
+
+        nanosleep(&sleepTime, NULL);
+
+        // Blank the display
+        Display_SetAll(0, 0, 0);
+        Display_Update();
+
+        // And close the device
+        close(deviceFd);
+    }
 
     return 0;
 }
