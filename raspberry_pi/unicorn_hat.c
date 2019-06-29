@@ -25,7 +25,8 @@ static uint8_t display[DISPLAY_SIZE];
 static int deviceFd;
 
 static void Error_Fatal(const char *s, ...);
-static void SPI_Xfer(int fd, uint8_t* tx, uint8_t *rx, unsigned length, unsigned delay, unsigned speed, unsigned bitsPerWord);
+static void SPI_Xfer(int fd, uint8_t* txBuffer, uint8_t* rxBuffer, uint32_t length,
+                     uint16_t delayUs, uint32_t speedHz, uint8_t bitsPerWord);
 
 #define CHECK_PARAM(param, max) \
     if (param > max) {\
@@ -65,7 +66,7 @@ static void Display_Update()
     static const uint32_t speedHz = 9000000;
     static const uint16_t delayUs = 0;
     static const uint32_t bufferLen = DISPLAY_SIZE + 1;
-    uint8_t txBuffer[bufferLen]; // Would really like to avoid this allocation :(
+    uint8_t txBuffer[bufferLen]; // Should really avoid this allocation :(
     uint8_t rxBuffer[bufferLen];
 
     rxBuffer[0] = 0;
@@ -75,12 +76,12 @@ static void Display_Update()
     SPI_Xfer(deviceFd, txBuffer, rxBuffer, bufferLen, delayUs, speedHz, bitsPerWord);
 }
 
-static void SPI_Xfer(int fd, uint8_t* txBuffer, uint8_t* rxBuffer, unsigned length,
-                     unsigned delayUs, unsigned speedHz, unsigned bitsPerWord)
+static void SPI_Xfer(int fd, uint8_t* txBuffer, uint8_t* rxBuffer, uint32_t length,
+                     uint16_t delayUs, uint32_t speedHz, uint8_t bitsPerWord)
 {
     struct spi_ioc_transfer xfer = {
-        .tx_buf = (unsigned long)txBuffer,
-        .rx_buf = (unsigned long)rxBuffer,
+        .tx_buf = (uint32_t)txBuffer,
+        .rx_buf = (uint32_t)rxBuffer,
         .len = length,
         .delay_usecs = delayUs,
         .speed_hz = speedHz,
