@@ -15,4 +15,4 @@ They provide a Python library to work with it; the code here is in C.
 
 # License
 
-All code in this repository is MIT Licensed unless otherwise specified. See [LICENSE].
+All code in this repository is MIT Licensed unless otherwise specified. See [LICENSE](LICENSE).
